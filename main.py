@@ -7,21 +7,21 @@ from birdnetlib import Recording
 from birdnetlib.analyzer import Analyzer
 from datetime import datetime
 
-# Load the AI model into memory
-analyzer = Analyzer()
-# ---------------------------
-
 app = FastAPI()
 
 # --- DATABASE SETUP ---
-# Tell Python to use the local Docker emulator instead of the real cloud
-os.environ["FIRESTORE_EMULATOR_HOST"] = "127.0.0.1:8080"
+# Use the Docker service name 'firestore' instead of 127.0.0.1 so containers can talk
+os.environ["FIRESTORE_EMULATOR_HOST"] = "firestore:8080"
 os.environ["GOOGLE_CLOUD_PROJECT"] = "bird-project-local"
-
-app = FastAPI()
 
 # Connect to the database!
 db = firestore.Client()
+
+# Load the AI model lazily or safely inside startup/endpoints 
+# (Or keep it here, but ensure the emulator host is set BEFORE this line!)
+analyzer = Analyzer()
+
+
 
 # --- OUR FAKE DATABASE (We will delete this soon!) ---
 open_targets = ["Cubbon Park", "Lalbagh Botanical Garden", "Ulsoor Lake"]
