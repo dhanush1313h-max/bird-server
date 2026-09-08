@@ -5,3 +5,5 @@ pydantic
 python-multipart
 birdnetlib
 resampy
+librosa
+tensorflow
