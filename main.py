@@ -1,7 +1,17 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, File, UploadFile, Form
 from pydantic import BaseModel
 from google.cloud import firestore
+import shutil
+from birdnetlib import Recording
+from birdnetlib.analyzer import Analyzer
+from datetime import datetime
+
+# Load the AI model into memory
+analyzer = Analyzer()
+# ---------------------------
+
+app = FastAPI()
 
 # --- DATABASE SETUP ---
 # Tell Python to use the local Docker emulator instead of the real cloud
@@ -92,26 +102,49 @@ def commit_to_target(commitment: TargetCommit):
             "message": "Sorry, that target is no longer available."
         }
 
+# Create an 'uploads' folder on your laptop to act as our fake Cloud Storage
+os.makedirs("uploads", exist_ok=True)
+
 @app.post("/submit")
-def submit_recording(submission: RecordingSubmit):
-    # 1. Point to the specific park document
-    doc_ref = db.collection("targets").document(submission.target_name)
+def submit_recording(
+    target_name: str = Form(...), 
+    user_id: str = Form(...), 
+    audio_file: UploadFile = File(...)
+):
+    doc_ref = db.collection("targets").document(target_name)
     doc = doc_ref.get()
     
-    # 2. Verify this exact user actually committed to it
-    if doc.exists and doc.to_dict().get("status") == "committed" and doc.to_dict().get("committed_by") == submission.user_id:
+    if doc.exists and doc.to_dict().get("status") == "committed" and doc.to_dict().get("committed_by") == user_id:
         
-        # 3. Update status to completed (job is done!)
+        # Save the audio file locally
+        file_location = f"uploads/{audio_file.filename}"
+        with open(file_location, "wb") as buffer:
+            shutil.copyfileobj(audio_file.file, buffer)
+            
+        # Update database status to completed
         doc_ref.update({
             "status": "completed"
         })
         
-        # Pretend our ML model runs here...
-        identified_birds = ["Common Tailorbird", "Rose-ringed Parakeet"]
+        # --- THE REAL BIRDNET AI ---
+        print(f"Analyzing {audio_file.filename} with BirdNET...")
+        recording = Recording(
+            analyzer,
+            file_location,
+            lat=12.9716, # Bengaluru coordinates
+            lon=77.5946,
+            date=datetime.now(),
+            min_conf=0.25 # Only keep predictions > 25% confidence
+        )
+        recording.analyze()
+        
+        # Extract the results into a clean list
+        identified_birds = [detection["common_name"] for detection in recording.detections]
+        # ---------------------------
         
         return {
             "status": "success",
-            "message": "Audio received and analyzed!",
+            "message": f"Audio file '{audio_file.filename}' analyzed successfully!",
             "species_found": identified_birds
         }
     else:

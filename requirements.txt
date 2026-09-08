@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+google-cloud-firestore
+pydantic
+python-multipart
+birdnetlib
+resampy

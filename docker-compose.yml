@@ -6,3 +6,13 @@ services:
     command: gcloud emulators firestore start --host-port=0.0.0.0:8080
     environment:
       - FIRESTORE_PROJECT_ID=bird-project-local
+
+  api:
+    build: .
+    ports:
+      - "8000:8080"
+    environment:
+      - FIRESTORE_EMULATOR_HOST=firestore:8080
+      - FIRESTORE_PROJECT_ID=bird-project-local
+    depends_on:
+      - firestore

@@ -7,6 +7,10 @@ WORKDIR /app
 # 3. Copy our grocery list into the container
 COPY requirements.txt .
 
+# --- NEW: Install the system audio reader ---
+RUN apt-get update && apt-get install -y ffmpeg
+# --------------------------------------------
+
 # 4. Install the tools from the grocery list
 RUN pip install --no-cache-dir -r requirements.txt
 
